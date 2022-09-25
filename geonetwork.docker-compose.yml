@@ -1,0 +1,146 @@
+version: '3.7'
+
+networks:
+  ogcapi:
+    name: ogcapi
+
+volumes:
+  geonetwork:
+  esdata:
+
+services:
+  traefik:
+    image: "traefik:v2.8"
+    container_name: traefik
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.watch"
+      - "--providers.docker.exposedbydefault=false"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    networks:
+      - ogcapi
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/traefik.log:/traefik.log"
+    depends_on:
+      - tileserv
+      - featureserv
+    
+  tileserv:
+    container_name: tileserv
+    image: pramsey/pg_tileserv
+    command: "--config /app/tileserv_config.toml"
+    ports:
+      - 7800:7800
+    expose:
+      - "7800"
+    volumes:
+      - ./config/tileserv_config.toml:/app/tileserv_config.toml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ogcapi
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tileserv.entrypoints=web"
+      - traefik.http.routers.tileserv.rule=PathPrefix("/tiles")
+      - "traefik.http.services.tileserv.loadbalancer.server.port=7800"
+      - "traefik.http.middlewares.tileserv.plugin.httpCache.memory.limit=4Gi"
+      # - "traefik.http.routers.tileserv.rule=Host(`tileserv.docker.localhost`) && PathPrefix(`/tiles`)"
+      #- "traefik.docker.network=ogcapi"
+  
+  featureserv:
+    container_name: featureserv
+    image: pramsey/pg_featureserv
+    command: "--config /app/featureserv_config.toml"
+    ports:
+      - 9000:9000
+    expose:
+      - "9000"
+    volumes:
+      - ./config/featureserv_config.toml:/app/featureserv_config.toml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ogcapi
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fileserv.entrypoints=web"
+      - traefik.http.routers.fileserv.rule=PathPrefix("/features")
+      - "traefik.http.services.fileserv.loadbalancer.server.port=9000"
+      - "traefik.http.middlewares.fileserv.plugin.httpCache.memory.limit=4Gi"
+
+
+  geonetwork:
+      image: geonetwork
+      container_name: geonetwork
+      restart: always
+      ports:
+        - 8081:8080
+      expose:
+        - "8081"
+      environment:
+        DATA_DIR: /var/lib/geonetwork_data
+        JAVA_OPTS: >
+          -Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF
+          -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true
+          -Xms512M -Xss512M -Xmx2G -XX:+UseConcMarkSweepGC
+        ES_HOST: elasticsearch
+        ES_PROTOCOL: http
+        ES_PORT: 9200
+        KB_URL: http://kibana:5601
+      volumes:
+        - geonetwork:/var/lib/geonetwork_data
+      networks:
+        - ogcapi
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.geonet.entrypoints=web"
+        - traefik.http.routers.geonet.rule=PathPrefix("/geonetwork")
+        - "traefik.http.services.geonet.loadbalancer.server.port=8081"
+
+  
+  elasticsearch:
+    image: elasticsearch:7.11.1
+    container_name: elasticsearch
+    ports:
+      - 9200:9200
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      ES_JAVA_OPTS: "-Xms1G -Xmx1G"
+      discovery.type: single-node
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - ogcapi
+
+  kibana:
+    image: kibana:7.11.1
+    container_name: kibana
+    environment:
+      SERVER_NAME: 'kibana'
+      ELASTICSEARCH_URL: http://elasticsearch:9200/
+      SERVER_BASEPATH: /geonetwork/dashboards
+      SERVER_REWRITEBASEPATH: 'false'
+      KIBANA_INDEX: .dashboards
+      XPACK_MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED: 'true'
+    networks:
+      - ogcapi
+
+
+

@@ -1,0 +1,97 @@
+version: '3.7'
+
+networks:
+  ogcapi:
+    name: ogcapi
+
+services:
+  # traefik:
+  #   image: "traefik:v2.8"
+  #   container_name: traefik
+  #   command:
+  #     #- "--log.level=DEBUG"
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #   ports:
+  #     - "80:80"
+  #     - "8080:8080"
+  #   networks:
+  #     - ogcapi
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   volumes:
+  #     - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  #     - "./traefik/traefik.log:/traefik.log"
+  
+  web:
+    image: eeacms/varnish
+    ports:
+      - '80:6081'
+      - '6085:6085'
+    environment:
+      BACKENDS: 'tileserv:7800 featureserv:9000'
+      DNS_ENABLED: 'false'
+      COOKIES: 'true'
+      PARAM_VALUE: '-p default_ttl=600'
+      BACKENDS_PROBE_INTERVAL: "3s"
+      BACKENDS_PROBE_TIMEOUT: "1s"
+      BACKENDS_PROBE_WINDOW: "3"
+      BACKENDS_PROBE_THRESHOLD: "2"
+      DASHBOARD_USER: "admin"
+      DASHBOARD_PASSWORD: "admin"
+      DASHBOARD_SERVERS: "varnish"
+      DASHBOARD_DNS_ENABLED: "true"
+    networks:
+      - ogcapi
+    depends_on:
+      - tileserv
+
+  
+  tileserv:
+    container_name: tileserv
+    image: pramsey/pg_tileserv
+    command: "--config /app/tileserv_config.toml"
+    ports:
+      - 7800:7800
+    expose:
+      - "7800"
+    volumes:
+      - ./config/tileserv_config.toml:/app/tileserv_config.toml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ogcapi
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.tileserv.entrypoints=web"
+    #   - "traefik.http.services.tileserv.loadbalancer.server.port=7800"
+      #- "traefik.http.routers.tileserv.rule=Host(`tileserv.docker.localhost`) && PathPrefix(`/tiles`)"
+      #- traefik.http.routers.tileserv.rule=PathPrefix("/tiles")
+      #- "traefik.docker.network=ogcapi"
+  
+  featureserv:
+    container_name: featureserv
+    image: pramsey/pg_featureserv
+    command: "--config /app/featureserv_config.toml"
+    ports:
+      - 9000:9000
+    expose:
+      - "9000"
+    volumes:
+      - ./config/featureserv_config.toml:/app/featureserv_config.toml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ogcapi
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.featureserv.entrypoints=web"
+    #   #- "traefik.http.routers.featureserv.rule=Host(`127.0.0.1`) && PathPrefix(`/features`)"
+    #   - "traefik.http.services.featureserv.loadbalancer.server.port=9000"
+    #   - traefik.http.routers.featureserv.rule=PathPrefix("/features")
+      
+      #- "traefik.docker.network=ogcapi"
+
+

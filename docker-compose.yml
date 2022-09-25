@@ -34,7 +34,8 @@ services:
   tileserv:
     container_name: tileserv
     image: pramsey/pg_tileserv
-    command: "--config /app/tileserv_config.toml"
+    # uncomment to use config files
+    # command: "--config /app/tileserv_config.toml"
     ports:
       - 7800:7800
     expose:
@@ -51,11 +52,16 @@ services:
       - traefik.http.routers.tileserv.rule=PathPrefix("/tiles")
       - "traefik.http.services.tileserv.loadbalancer.server.port=7800"
       - "traefik.http.middlewares.tileserv.plugin.httpCache.memory.limit=4Gi"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      TS_BASEPATH: ${TS_BASEPATH}
+      TS_HTTPPORT: ${TS_HTTPPORT}
   
   featureserv:
     container_name: featureserv
     image: pramsey/pg_featureserv
-    command: "--config /app/featureserv_config.toml"
+    # uncomment to use config files
+    # command: "--config /app/featureserv_config.toml"
     ports:
       - 9000:9000
     expose:
@@ -72,6 +78,11 @@ services:
       - traefik.http.routers.fileserv.rule=PathPrefix("/features")
       - "traefik.http.services.fileserv.loadbalancer.server.port=9000"
       - "traefik.http.middlewares.fileserv.plugin.httpCache.memory.limit=4Gi"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PGFS_METADATA_TITLE: ${PGFS_METADATA_TITLE}
+      PGFS_SERVER_BASEPATH: ${PGFS_SERVER_BASEPATH}
+      PGFS_SERVER_HTTPPORT: ${PGFS_SERVER_HTTPPORT}
 
   postgrest:
     image: postgrest/postgrest
@@ -83,10 +94,10 @@ services:
     networks:
       - georestapi
     environment:
-      PGRST_DB_URI: "postgresql://postgres:postgres@host.docker.internal:5433/gis"
+      PGRST_DB_URI: ${DATABASE_URL}
       PGRST_OPENAPI_SERVER_PROXY_URI: 'http://127.0.0.1:3000'
-      PGRST_DB_SCHEMAS: "public"
-      PGRST_DB_ANON_ROLE: "web_anon"
+      PGRST_DB_SCHEMAS: ${DATABASE_SCHEMA}
+      PGRST_DB_ANON_ROLE: ${DATABASE_ANON}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.postgrest.entrypoints=web"

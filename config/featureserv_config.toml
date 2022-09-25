@@ -1,0 +1,35 @@
+[Server]
+# Accept connections on this subnet (default accepts on all)
+#HttpHost = "0.0.0.0"
+
+# IP ports to listen on
+HttpPort = 9000
+
+# String to return for Access-Control-Allow-Origin header
+CORSOrigins = "*"
+
+#UrlBase = "http://localhost/features"
+
+BasePath = "/features"
+
+# set Debug to true to run in debug mode (can also be set on cmd-line)
+Debug = true
+
+[Database]
+# Database connection
+# postgresql://username:password@host/dbname
+# DATABASE_URL environment variable takes precendence if set.
+DbConnection = "postgresql://postgres:postgres@127.0.0.1:5433/gis"
+# DbConnection = "postgresql://postgres:postgres@host.docker.internal:5433/gis"
+
+[Paging]
+# The default number of features in a response
+LimitDefault = 20
+# Maxium number of features in a response
+LimitMax = 10000
+
+[Metadata]
+# Title for this service
+Title = "FOSS4G pg-featureserv"
+# Description of this service
+Description = "FOSS4G Feature Server"

@@ -35,7 +35,7 @@ services:
     container_name: tileserv
     image: pramsey/pg_tileserv
     # uncomment to use config files
-    # command: "--config /app/tileserv_config.toml"
+    command: "--config /app/tileserv_config.toml"
     ports:
       - 7800:7800
     expose:
@@ -84,28 +84,28 @@ services:
       PGFS_SERVER_BASEPATH: ${PGFS_SERVER_BASEPATH}
       PGFS_SERVER_HTTPPORT: ${PGFS_SERVER_HTTPPORT}
 
-  postgrest:
-    image: postgrest/postgrest
-    container_name: postgrest
-    ports:
-      - "3000:3000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - georestapi
-    environment:
-      PGRST_DB_URI: ${DATABASE_URL}
-      PGRST_OPENAPI_SERVER_PROXY_URI: 'http://127.0.0.1:3000'
-      PGRST_DB_SCHEMAS: ${DATABASE_SCHEMA}
-      PGRST_DB_ANON_ROLE: ${DATABASE_ANON}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.postgrest.entrypoints=web"
-      - traefik.http.routers.postgrest.rule=PathPrefix("/api")
-      - "traefik.http.services.postgrest.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.postgrest.plugin.httpCache.memory.limit=4Gi"
-      - "traefik.http.routers.postgrest.middlewares=postgrest-strip"
-      - "traefik.http.middlewares.postgrest-strip.stripprefix.prefixes=/api"
+  # postgrest:
+  #   image: postgrest/postgrest
+  #   container_name: postgrest
+  #   ports:
+  #     - "3000:3000"
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   networks:
+  #     - georestapi
+  #   environment:
+  #     PGRST_DB_URI: ${DATABASE_URL}
+  #     PGRST_OPENAPI_SERVER_PROXY_URI: 'http://127.0.0.1:3000'
+  #     PGRST_DB_SCHEMAS: ${DATABASE_SCHEMA}
+  #     PGRST_DB_ANON_ROLE: ${DATABASE_ANON}
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.postgrest.entrypoints=web"
+  #     - traefik.http.routers.postgrest.rule=PathPrefix("/api")
+  #     - "traefik.http.services.postgrest.loadbalancer.server.port=3000"
+  #     - "traefik.http.middlewares.postgrest.plugin.httpCache.memory.limit=4Gi"
+  #     - "traefik.http.routers.postgrest.middlewares=postgrest-strip"
+  #     - "traefik.http.middlewares.postgrest-strip.stripprefix.prefixes=/api"
 
 
 

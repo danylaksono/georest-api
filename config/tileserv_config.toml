@@ -1,7 +1,7 @@
 # Database connection
 #DbConnection = "user=postgres password=postgres host=localhost:5433 dbname=gis"
-DbConnection = "postgresql://postgres:postgres@localhost:5433/gis"
-# DbConnection = "postgresql://postgres:postgres@host.docker.internal:5433/gis"
+# DbConnection = "postgresql://postgres:postgres@localhost:5433/gis"
+DbConnection = "postgresql://postgres:postgres@host.docker.internal:5433/gis"
 
 # Close pooled connections after this interval
 DbPoolMaxConnLifeTime = "1h"
@@ -33,3 +33,10 @@ DefaultMaxZoom = 22
 CORSOrigins = "*"
 # logging information?
 Debug = true
+
+[CoordinateSystem]
+SRID = 3857
+Xmin = -20037508.3427892
+Ymin = -20037508.3427892
+Xmax = 20037508.3427892
+Ymax = 20037508.3427892

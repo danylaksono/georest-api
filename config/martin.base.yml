@@ -1,0 +1,9 @@
+route_prefix: /tiles
+listen_addresses: 0.0.0.0:3000
+web_ui: disable
+cors: false
+on_invalid: abort
+postgres:
+  auto_publish: false
+  auto_bounds: skip
+  pool_size: 5

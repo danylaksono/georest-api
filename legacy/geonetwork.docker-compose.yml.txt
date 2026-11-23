@@ -14,16 +14,12 @@ services:
     container_name: traefik
     command:
       #- "--log.level=DEBUG"
-      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.watch"
       - "--providers.docker.exposedbydefault=false"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"
     networks:
       - ogcapi
     extra_hosts:
@@ -34,13 +30,11 @@ services:
     depends_on:
       - tileserv
       - featureserv
-    
+
   tileserv:
     container_name: tileserv
     image: pramsey/pg_tileserv
     command: "--config /app/tileserv_config.toml"
-    ports:
-      - 7800:7800
     expose:
       - "7800"
     volumes:
@@ -54,16 +48,13 @@ services:
       - "traefik.http.routers.tileserv.entrypoints=web"
       - traefik.http.routers.tileserv.rule=PathPrefix("/tiles")
       - "traefik.http.services.tileserv.loadbalancer.server.port=7800"
-      - "traefik.http.middlewares.tileserv.plugin.httpCache.memory.limit=4Gi"
       # - "traefik.http.routers.tileserv.rule=Host(`tileserv.docker.localhost`) && PathPrefix(`/tiles`)"
       #- "traefik.docker.network=ogcapi"
-  
+
   featureserv:
     container_name: featureserv
     image: pramsey/pg_featureserv
     command: "--config /app/featureserv_config.toml"
-    ports:
-      - 9000:9000
     expose:
       - "9000"
     volumes:
@@ -77,15 +68,12 @@ services:
       - "traefik.http.routers.fileserv.entrypoints=web"
       - traefik.http.routers.fileserv.rule=PathPrefix("/features")
       - "traefik.http.services.fileserv.loadbalancer.server.port=9000"
-      - "traefik.http.middlewares.fileserv.plugin.httpCache.memory.limit=4Gi"
 
 
   geonetwork:
       image: geonetwork
       container_name: geonetwork
       restart: always
-      ports:
-        - 8081:8080
       expose:
         - "8081"
       environment:
@@ -108,12 +96,10 @@ services:
         - traefik.http.routers.geonet.rule=PathPrefix("/geonetwork")
         - "traefik.http.services.geonet.loadbalancer.server.port=8081"
 
-  
+
   elasticsearch:
     image: elasticsearch:7.11.1
     container_name: elasticsearch
-    ports:
-      - 9200:9200
     ulimits:
       memlock:
         soft: -1
@@ -141,6 +127,3 @@ services:
       XPACK_MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED: 'true'
     networks:
       - ogcapi
-
-
-

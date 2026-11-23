@@ -1,0 +1,44 @@
+# Configure GeoREST
+
+Copy `.env.example` to `.env`. Pass each Compose `-f` in order when using overlays. For colon-delimited `COMPOSE_FILE` lists on native Windows, include `COMPOSE_PATH_SEPARATOR=:` in `.env`.
+
+| Setting | Default and purpose |
+|---|---|
+| `COMPOSE_PROFILES` | `db` enables the bundled database. |
+| `GEOREST_DATASET` | `demo` uses the bundled fixture. `external` uses an existing database with an explicit manifest. |
+| `GEOREST_CONFIG_MODE` | `auto` generates configs. `manual` uses operator-managed configs. |
+| `GEOREST_COLLECTIONS_FILE` | Manifest path. Defaults to the demo manifest and is required in external auto mode. |
+| `GEOREST_MANUAL_DIR` | Directory holding `pygeoapi.config.yml` and `martin.yaml` in manual mode. Defaults to `./config`. |
+| `PUBLIC_URL` | `http://localhost`. Browser-facing origin, including the port if nonstandard. |
+| `GEOREST_BIND_ADDRESS`, `GEOREST_HTTP_PORT` | `127.0.0.1` and `80`. Published HTTP socket. |
+| `CORS_ORIGINS` | `*` for the demo. Enter comma-separated allowed browser origins or an empty value to disable CORS headers. |
+| `GEOREST_TITLE`, `GEOREST_DESCRIPTION` | OGC landing page metadata. |
+| `GEOREST_API_WORKERS` | `2` Gunicorn workers. |
+| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGSSLMODE` | `postgis`, `5432`, `gis`, and `prefer` for the bundled database. |
+| `POSTGRES_PASSWORD` | Initial superuser password for the bundled database. |
+| `GEOREST_READER_PASSWORD`, `GEOREST_EDITOR_PASSWORD` | Restricted role passwords. Rotate or provision explicitly when using an existing database volume. |
+| `GEOREST_REGISTRY`, `GEOREST_VERSION` | `ghcr.io/danylaksono` and `dev` for custom images. |
+
+## External PostGIS
+
+Set `GEOREST_DATASET=external` and clear `COMPOSE_PROFILES`. Set `PGHOST`, `PGPORT`, `PGDATABASE`, `PGSSLMODE`, and `GEOREST_READER_PASSWORD` for the target database. Set `GEOREST_COLLECTIONS_FILE` to a copy of [collections.example.yml](../config/collections.example.yml). A database on the Docker host can use `host.docker.internal` when PostgreSQL listens on an interface reachable from containers.
+
+As a database administrator, enable PostGIS and create the reader. Use `\password georest_reader` in `psql` to set the password interactively. Grant access to named objects.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE ROLE georest_reader LOGIN;
+GRANT CONNECT ON DATABASE gis TO georest_reader;
+GRANT USAGE ON SCHEMA survey TO georest_reader;
+GRANT SELECT ON TABLE survey.observations, survey.boundaries TO georest_reader;
+```
+
+## Manifest and refresh
+
+Each `collections` key is the public collection ID and, when enabled, Martin source ID. Use a letter followed by lowercase letters, digits, underscores, or hyphens. Name the schema, table, and geometry column explicitly. `exclude` takes precedence. `tiles: false` publishes features only. If there is no single-column primary key, set `id_field` to a column with a non-null unique constraint or index. `time_field` accepts a date or timestamp. Titles, descriptions, and keywords are optional.
+
+Run `make refresh LEVEL=1` or `python scripts/refresh.py -f compose.yaml` with the same Compose arguments used for startup. The command validates the new snapshot, briefly stops the edge, and starts the services with the new configs. Run one refresh at a time.
+
+Run `docker compose run --rm --no-deps configure render --check` to validate without applying. Use `--dry-run` to print generated configuration with database credentials redacted.
+
+Read-only manual mode uses `pygeoapi.config.yml` and `martin.yaml` under `GEOREST_MANUAL_DIR`. Set the same `/api` and `/tiles` prefixes, use restricted DB logins and explicit Martin table sources, and maintain matching source IDs and provider URLs.

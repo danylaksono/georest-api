@@ -1,0 +1,12 @@
+services:
+  configure:
+    networks: [clients, database, fixture]
+  pygeoapi:
+    networks: [clients, database, fixture]
+  martin:
+    networks: [clients, database, fixture]
+
+networks:
+  fixture:
+    external: true
+    name: ${GEOREST_TEST_NETWORK:?set the external fixture network}

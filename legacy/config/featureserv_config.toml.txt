@@ -17,10 +17,10 @@ Debug = true
 
 [Database]
 # Database connection
-# postgresql://username:password@host/dbname
+# postgresql://USER:REPLACE_ME@host/dbname
 # DATABASE_URL environment variable takes precendence if set.
-DbConnection = "postgresql://postgres:postgres@127.0.0.1:5433/gis"
-# DbConnection = "postgresql://postgres:postgres@host.docker.internal:5433/gis"
+DbConnection = "postgresql://USER:REPLACE_ME@127.0.0.1:5433/gis"
+# DbConnection = "postgresql://USER:REPLACE_ME@host.docker.internal:5433/gis"
 
 [Paging]
 # The default number of features in a response

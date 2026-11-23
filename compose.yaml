@@ -1,0 +1,129 @@
+x-georest-image: &georest-image
+  image: ${GEOREST_REGISTRY:-ghcr.io/danylaksono}/georest-pygeoapi:${GEOREST_VERSION:-dev}
+  build:
+    context: ./images/pygeoapi
+
+services:
+  configure:
+    <<: *georest-image
+    entrypoint: ["/venv/bin/python", "-m", "georest_config"]
+    command: ["render"]
+    environment:
+      GEOREST_DATASET: ${GEOREST_DATASET:-demo}
+      GEOREST_CONFIG_MODE: ${GEOREST_CONFIG_MODE:-auto}
+      GEOREST_COLLECTIONS_EXPLICIT: ${GEOREST_COLLECTIONS_FILE:+true}
+      GEOREST_BIND_ADDRESS: ${GEOREST_BIND_ADDRESS:-127.0.0.1}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS-*}
+      GEOREST_TITLE: ${GEOREST_TITLE:-GeoREST API}
+      GEOREST_DESCRIPTION: ${GEOREST_DESCRIPTION:-OGC API Features and vector tiles}
+      PGHOST: ${PGHOST:-postgis}
+      PGPORT: ${PGPORT:-5432}
+      PGDATABASE: ${PGDATABASE:-gis}
+      PGSSLMODE: ${PGSSLMODE:-prefer}
+      GEOREST_READER_PASSWORD: ${GEOREST_READER_PASSWORD:-demo-reader-password}
+    volumes:
+      - ${GEOREST_COLLECTIONS_FILE:-./config/collections.demo.yml}:/inputs/collections.yml:ro
+      - ./config/pygeoapi.base.yml:/inputs/pygeoapi.yml:ro
+      - ./config/martin.base.yml:/inputs/martin.yml:ro
+      - ${GEOREST_MANUAL_DIR:-./config}:/manual:ro
+      - api-config:/runtime/api
+      - martin-config:/runtime/martin
+      - edge-config:/runtime/edge
+    networks: [clients, database]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  pygeoapi:
+    <<: *georest-image
+    depends_on:
+      configure:
+        condition: service_completed_successfully
+        restart: true
+    environment:
+      PYGEOAPI_CONFIG: /runtime/current/pygeoapi.yml
+      SCRIPT_NAME: /api
+      WSGI_WORKERS: ${GEOREST_API_WORKERS:-2}
+      WSGI_WORKER_TIMEOUT: "60"
+    volumes:
+      - api-config:/runtime:ro
+    networks: [clients, database]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    healthcheck:
+      test: ["CMD", "/venv/bin/python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1/api/conformance?f=json', timeout=3).close()"]
+      interval: 2s
+      timeout: 4s
+      retries: 25
+
+  martin:
+    image: ghcr.io/maplibre/martin:1.16.1
+    command: ["--config", "/runtime/current/martin.yml"]
+    depends_on:
+      configure:
+        condition: service_completed_successfully
+        restart: true
+    volumes:
+      - martin-config:/runtime:ro
+    networks: [clients, database]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:3000/tiles/health"]
+      interval: 2s
+      timeout: 4s
+      retries: 25
+
+  traefik:
+    image: traefik:v3.7.19
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/runtime/current/traefik.yml
+      - --providers.file.watch=false
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+    depends_on:
+      pygeoapi:
+        condition: service_healthy
+        restart: true
+      martin:
+        condition: service_healthy
+        restart: true
+    ports:
+      - "${GEOREST_BIND_ADDRESS:-127.0.0.1}:${GEOREST_HTTP_PORT:-80}:80"
+    volumes:
+      - edge-config:/runtime:ro
+    networks: [clients]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/api/conformance?f=json"]
+      interval: 2s
+      timeout: 4s
+      retries: 25
+
+  postgis:
+    image: postgis/postgis:17-3.6-alpine
+    profiles: [db]
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-gis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-db-password}
+      GEOREST_BIND_ADDRESS: ${GEOREST_BIND_ADDRESS:-127.0.0.1}
+      GEOREST_READER_PASSWORD: ${GEOREST_READER_PASSWORD:-demo-reader-password}
+      GEOREST_EDITOR_PASSWORD: ${GEOREST_EDITOR_PASSWORD:-demo-editor-password}
+    volumes:
+      - postgis-data:/var/lib/postgresql/data
+      - ./db/init/01-roles.sh:/docker-entrypoint-initdb.d/21-georest-roles.sh:ro
+      - ./db/init/02-sample-data.sql:/docker-entrypoint-initdb.d/22-georest-data.sql:ro
+    networks: [database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+networks:
+  clients: {}
+  database:
+    internal: true
+
+volumes:
+  api-config: {}
+  martin-config: {}
+  edge-config: {}
+  postgis-data: {}

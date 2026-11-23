@@ -1,0 +1,23 @@
+defaults:
+  tiles: true
+  cache: static
+exclude:
+  - schema: survey
+    table: internal_observations
+collections:
+  survey-points:
+    schema: survey
+    table: observations
+    geometry: geom
+    title: Survey observations
+    description: Public field observations
+    keywords: [survey]
+    id_field: observation_id
+    time_field: observed_at
+    editable: true
+    cache: volatile
+  survey-boundaries:
+    schema: survey
+    table: boundaries
+    geometry: geom
+    tiles: false

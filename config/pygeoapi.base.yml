@@ -1,0 +1,36 @@
+server:
+  bind:
+    host: 0.0.0.0
+    port: 80
+  url: http://localhost/api
+  mimetype: application/json; charset=UTF-8
+  encoding: utf-8
+  languages: [en-US]
+  cors: false
+  admin: false
+  limits:
+    default_items: 20
+    max_items: 500
+  map:
+    url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
+    attribution: "&copy; OpenStreetMap contributors"
+logging:
+  level: WARNING
+metadata:
+  identification:
+    title: GeoREST API
+    description: OGC API Features and vector tiles
+    keywords: [geospatial, ogc]
+    terms_of_service: ""
+    url: http://localhost/api
+  license:
+    name: See the dataset terms
+    url: http://localhost/api
+  provider:
+    name: GeoREST API
+    url: http://localhost/api
+  contact:
+    name: GeoREST operator
+    email: ""
+    url: http://localhost/api
+resources: {}

@@ -4,11 +4,9 @@ services:
   martin:
     image: urbica/martin
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     expose:
       - "3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@host.docker.internal:5433/gis
+      - DATABASE_URL=postgresql://USER:REPLACE_ME@host.docker.internal:5433/gis

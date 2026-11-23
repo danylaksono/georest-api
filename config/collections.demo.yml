@@ -1,0 +1,18 @@
+defaults:
+  tiles: true
+collections:
+  demo_points:
+    schema: georest_demo
+    table: demo_points
+    geometry: geom
+    time_field: observed_at
+    cache: volatile
+    editable: true
+  demo_lines:
+    schema: georest_demo
+    table: demo_lines
+    geometry: geom
+  demo_polygons:
+    schema: georest_demo
+    table: demo_polygons
+    geometry: geom

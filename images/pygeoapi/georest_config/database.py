@@ -14,6 +14,7 @@ from .manifest import Collection, ConfigError
 WORLD = [-180, -90, 180, 90]
 INTEGER_TYPES = {"int2", "int4", "int8"}
 TEMPORAL_TYPES = {"date", "timestamp", "timestamptz"}
+TILE_PROPERTY_TYPES = INTEGER_TYPES | {"bool", "float4", "float8", "text", "varchar", "bpchar"}
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class Table:
     description: str | None
     bounds: list[float]
     interval: list[str] | None
+    tile_properties: dict[str, str]
 
 
 def connect(settings):
@@ -172,6 +174,7 @@ def inspect_table(cursor, collection: Collection, extension_schema: str) -> Tabl
     return Table(
         id_field, fields[id_field][0] in INTEGER_TYPES, srid, extension_schema,
         fields[id_field][4], get_bounds(cursor, collection, srid), interval,
+        {name: value[0] for name, value in fields.items() if name != id_field and value[0] in TILE_PROPERTY_TYPES},
     )
 
 

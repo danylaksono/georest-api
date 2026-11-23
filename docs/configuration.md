@@ -18,6 +18,8 @@ Copy `.env.example` to `.env`. Pass each Compose `-f` in order when using overla
 | `POSTGRES_PASSWORD` | Initial superuser password for the bundled database. |
 | `GEOREST_READER_PASSWORD`, `GEOREST_EDITOR_PASSWORD` | Restricted role passwords. Rotate or provision explicitly when using an existing database volume. |
 | `GEOREST_REGISTRY`, `GEOREST_VERSION` | `ghcr.io/danylaksono` and `dev` for custom images. |
+| `VARNISH_SIZE` | `1G` of cache storage in Level 2. |
+| `TILE_TTL_DEFAULT`, `TILE_TTL_VOLATILE` | `3600` and `60` seconds for static and volatile sources. |
 
 ## External PostGIS
 
@@ -42,3 +44,11 @@ Run `make refresh LEVEL=1` or `python scripts/refresh.py -f compose.yaml` with t
 Run `docker compose run --rm --no-deps configure render --check` to validate without applying. Use `--dry-run` to print generated configuration with database credentials redacted.
 
 Read-only manual mode uses `pygeoapi.config.yml` and `martin.yaml` under `GEOREST_MANUAL_DIR`. Set the same `/api` and `/tiles` prefixes, use restricted DB logins and explicit Martin table sources, and maintain matching source IDs and provider URLs.
+
+## Tile cache
+
+Run `docker compose -f compose.yaml -f compose.cache.yaml up -d --build --wait` or `make up LEVEL=2`. Mark a changing collection with `cache: volatile`. Varnish ages tiles against the configured TTL without stale delivery. Martin's tile cache is disabled at this level. The edge sends `Cache-Control: no-store` to keep client caches from extending the server TTL.
+
+Successful public tile requests can hit the shared cache. Cookie and authorization requests bypass it. Catalog and TileJSON requests also bypass it. The direct tile path exposes `X-Cache` to distinguish `HIT`, `MISS`, and `PASS`. Generated Martin sources include scalar text, numeric, and boolean columns as vector tile attributes.
+
+With manual configs, set `cache: disable` in Martin. Point the manual OGC tile provider to `http://varnish/tiles/<id>/{z}/{x}/{y}` if it should share the default TTL.

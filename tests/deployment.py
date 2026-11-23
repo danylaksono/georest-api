@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from smoke_test import (  # noqa: E402
     collection_ids,
+    demo_tile_urls,
     json_response,
     request,
     smoke,
@@ -44,7 +45,7 @@ def fixture_port():
 def project_env():
     env = {key: value for key, value in os.environ.items() if not key.startswith(("COMPOSE_", "GEOREST_"))}
     port = fixture_port()
-    env.update(GEOREST_HTTP_PORT=str(port), PUBLIC_URL=f"http://localhost:{port}")
+    env.update(GEOREST_HTTP_PORT=str(port), PUBLIC_URL=f"http://127.0.0.1:{port}")
     return env
 
 
@@ -70,12 +71,39 @@ def demo(level):
                "-f", "compose.yaml"]
     if level >= 2:
         compose += ["-f", "compose.cache.yaml"]
+        env["TILE_TTL_VOLATILE"] = "5"
     try:
         start(compose, env)
         smoke(env["PUBLIC_URL"], level)
         ports_are_private(compose, env, env["GEOREST_HTTP_PORT"])
+        if level >= 2:
+            cache_freshness(compose, env)
     finally:
         command(*compose, "down", "--volumes", env=env)
+
+
+def cache_freshness(compose, env):
+    direct, through_api = demo_tile_urls(env["PUBLIC_URL"])
+    assert request(f"{env['PUBLIC_URL']}/tiles/catalog")[1]["X-Cache"] == "PASS"
+    # This query key starts a cold object, independent of the core smoke checks.
+    cold = direct + "?fixture=1"
+    assert request(cold)[1]["X-Cache"] == "MISS"
+    assert request(cold)[1]["X-Cache"] == "HIT"
+    assert all(b"Beta" in tile_bytes(url) for url in (direct, through_api))
+    command(
+        *compose, "exec", "-T", "postgis", "psql", "-U", "postgres", "-d", "gis",
+        "-v", "ON_ERROR_STOP=1", "-c",
+        "UPDATE georest_demo.demo_points SET name = 'Changed' WHERE name = 'Beta'",
+        env=env,
+    )
+    status, _, refreshed = request(through_api, headers={"Cookie": "fixture=1"})
+    assert status == 200 and b"Changed" in refreshed
+    deadline = time.monotonic() + int(env["TILE_TTL_VOLATILE"])
+    while time.monotonic() <= deadline:
+        if all(b"Changed" in tile_bytes(url) for url in (direct, through_api)):
+            return
+        time.sleep(0.25)
+    raise AssertionError("both tile paths must reflect the edit within the volatile TTL")
 
 
 def load_external_database(name, env):
@@ -105,7 +133,7 @@ def layer(schema, table, **settings):
     return {"schema": schema, "table": table, "geometry": "geom", **settings}
 
 
-def external():
+def external(level):
     name = f"georest-external-{secrets.token_hex(4)}"
     env = project_env()
     env.update(
@@ -114,8 +142,10 @@ def external():
         GEOREST_READER_PASSWORD=secrets.token_urlsafe(24), POSTGRES_PASSWORD=secrets.token_urlsafe(24),
         GEOREST_TEST_NETWORK=name,
     )
-    compose = ["docker", "compose", "--env-file", ".env.example", "-p", name, "-f", "compose.yaml",
-               "-f", "tests/compose.external.yaml"]
+    compose = ["docker", "compose", "--env-file", ".env.example", "-p", name, "-f", "compose.yaml"]
+    if level >= 2:
+        compose += ["-f", "compose.cache.yaml"]
+    compose += ["-f", "tests/compose.external.yaml"]
     origin = env["PUBLIC_URL"]
     manifest = {
         "exclude": [{"schema": "east", "table": "hidden"}],
@@ -175,5 +205,5 @@ if __name__ == "__main__":
     parser.add_argument("fixture", choices=("demo", "external"))
     parser.add_argument("--level", type=int, choices=(1, 2), default=1)
     args = parser.parse_args()
-    demo(args.level) if args.fixture == "demo" else external()
+    demo(args.level) if args.fixture == "demo" else external(args.level)
     print(f"{args.fixture} deployment fixture passed")

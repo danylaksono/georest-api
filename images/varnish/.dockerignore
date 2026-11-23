@@ -1,0 +1,4 @@
+*
+!Dockerfile
+!default.vcl
+!entrypoint.sh

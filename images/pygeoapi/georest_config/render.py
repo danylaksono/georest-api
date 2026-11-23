@@ -68,7 +68,7 @@ def database_url(database):
     return f"postgresql://{user}:{password}@{host}:{database['port']}/{dbname}?{query}"
 
 
-def pygeoapi_config(origin, database, collections, tables):
+def pygeoapi_config(origin, database, collections, tables, cache_enabled):
     api = load_yaml(Path("/inputs/pygeoapi.yml"))
     api_url = f"{origin.scheme}://{origin.netloc}/api"
     api["server"]["url"] = api_url
@@ -100,10 +100,14 @@ def pygeoapi_config(origin, database, collections, tables):
             feature["time_field"] = collection.time_field
         providers = [feature]
         if collection.tiles:
+            tile_origin = "http://varnish" if cache_enabled else "http://martin:3000"
+            provider_name = (
+                "georest_config.tile_proxy.CacheAwareMVTProxy" if cache_enabled else "MVT-proxy"
+            )
             providers.append({
                 "type": "tile",
-                "name": "MVT-proxy",
-                "data": f"http://martin:3000/tiles/{collection.id}/{{z}}/{{x}}/{{y}}",
+                "name": provider_name,
+                "data": f"{tile_origin}/tiles/{collection.id}/{{z}}/{{x}}/{{y}}",
                 "options": {"zoom": {"min": 0, "max": 22}, "schemes": ["WebMercatorQuad"]},
                 "format": {"name": "pbf", "mimetype": "application/vnd.mapbox-vector-tile"},
             })
@@ -119,8 +123,10 @@ def pygeoapi_config(origin, database, collections, tables):
     return api
 
 
-def martin_config(database, collections, tables):
+def martin_config(database, collections, tables, cache_enabled):
     config = load_yaml(Path("/inputs/martin.yml"))
+    if cache_enabled:
+        config["cache"] = "disable"
     postgres = config["postgres"]
     postgres["connection_string"] = database_url(database)
     sources = {}
@@ -133,6 +139,7 @@ def martin_config(database, collections, tables):
                 "geometry_column": collection.geometry,
                 "srid": table.srid,
                 "layer_id": collection.id,
+                "properties": table.tile_properties,
             }
             if table.integer_id:
                 source["id_column"] = table.primary_id
@@ -144,7 +151,7 @@ def martin_config(database, collections, tables):
     return config
 
 
-def edge_config(origin, source_ids):
+def edge_config(origin, source_ids, cache_enabled):
     tile_path = "Path(`/tiles/catalog`)"
     if source_ids:
         ids = "|".join(sorted(source_ids))
@@ -173,6 +180,10 @@ def edge_config(origin, source_ids):
             }
         }
         common.append("cors")
+    if cache_enabled:
+        middlewares["client-cache"] = {"headers": {"customResponseHeaders": {"Cache-Control": "no-store"}}}
+        common.append("client-cache")
+    tile_backend = "http://varnish" if cache_enabled else "http://martin:3000"
     return {
         "http": {
             "routers": {
@@ -193,7 +204,7 @@ def edge_config(origin, source_ids):
             },
             "services": {
                 "api": {"loadBalancer": {"servers": [{"url": "http://pygeoapi:80"}]}},
-                "tiles": {"loadBalancer": {"servers": [{"url": "http://martin:3000"}]}},
+                "tiles": {"loadBalancer": {"servers": [{"url": tile_backend}]}},
             },
             "middlewares": middlewares,
         }
@@ -212,7 +223,7 @@ def redact(api, martin):
     return api, martin
 
 
-def manual_config():
+def manual_config(cache_enabled):
     api_path = Path("/manual/pygeoapi.config.yml")
     martin_path = Path("/manual/martin.yaml")
     api = load_yaml(api_path)
@@ -223,6 +234,8 @@ def manual_config():
         raise ConfigError("manual pygeoapi config must disable the admin API")
     if martin.get("route_prefix") != "/tiles":
         raise ConfigError("manual Martin config must set route_prefix: /tiles")
+    if cache_enabled and martin.get("cache") != "disable":
+        raise ConfigError("Level 2 requires cache: disable in a manual Martin config")
     pg_configs = martin.get("postgres", [])
     if isinstance(pg_configs, dict):
         pg_configs = [pg_configs]
@@ -236,24 +249,52 @@ def manual_config():
     return api_path.read_text(encoding="utf-8"), martin_path.read_text(encoding="utf-8"), source_ids
 
 
+def cache_policy(volatile_ids):
+    try:
+        default_ttl = int(os.environ["TILE_TTL_DEFAULT"])
+        short_ttl = int(os.environ["TILE_TTL_VOLATILE"])
+    except ValueError:
+        raise ConfigError("tile TTLs must be integer seconds") from None
+    if not 0 < short_ttl <= default_ttl <= 2_147_483_647:
+        raise ConfigError("tile TTLs must be positive and volatile must be at most the default")
+    lines = [
+        "sub georest_cache_ttl {",
+        f"    set beresp.ttl = {default_ttl}s;",
+    ]
+    if volatile_ids:
+        ids = "|".join(sorted(volatile_ids))
+        lines.extend([
+            f'    if (bereq.url ~ "^/tiles/({ids})/") {{',
+            f"        set beresp.ttl = {short_ttl}s;",
+            "    }",
+        ])
+    return "\n".join([*lines, "}", ""])
+
+
 def build_configs(dry_run=False):
     origin, mode, database = get_settings()
+    cache_enabled = os.environ.get("GEOREST_TILE_CACHE") == "true"
+    volatile_ids = []
     if mode == "manual":
         if dry_run:
             raise ConfigError("dry-run output is unavailable for operator-managed configs")
-        api, martin, source_ids = manual_config()
+        api, martin, source_ids = manual_config(cache_enabled)
     else:
         collections = read_manifest(Path("/inputs/collections.yml"))
         tables = inspect_manifest(collections, database)
-        api = pygeoapi_config(origin, database, collections, tables)
-        martin = martin_config(database, collections, tables)
+        api = pygeoapi_config(origin, database, collections, tables, cache_enabled)
+        martin = martin_config(database, collections, tables, cache_enabled)
+        volatile_ids = [collection.id for collection in collections if collection.tiles and collection.cache == "volatile"]
         source_ids = martin.get("postgres", {}).get("tables", {})
         if dry_run:
             api, martin = redact(api, martin)
         api, martin = (yaml.safe_dump(config, sort_keys=False) for config in (api, martin))
-    edge = yaml.safe_dump(edge_config(origin, source_ids), sort_keys=False)
-    return {
+    edge = yaml.safe_dump(edge_config(origin, source_ids, cache_enabled), sort_keys=False)
+    configs = {
         "api": {"pygeoapi.yml": api},
         "martin": {"martin.yml": martin},
         "edge": {"traefik.yml": edge},
     }
+    if cache_enabled:
+        configs["cache"] = {"cache-policy.vcl": cache_policy(volatile_ids)}
+    return configs

@@ -22,7 +22,7 @@ def stage(configs):
         for name, content in files.items():
             path = directory / name
             path.write_text(content, encoding="utf-8")
-            path.chmod(0o600)
+            path.chmod(0o644 if service == "cache" else 0o600)
     return snapshot
 
 
@@ -36,7 +36,8 @@ def switch(snapshot=None):
     if snapshot is not None and not re.fullmatch(r"[a-f0-9]{32}", snapshot):
         raise ConfigError("invalid snapshot ID")
     targets = {}
-    for service in SERVICES:
+    services = (*SERVICES, "cache") if (RUNTIME / "cache").is_dir() else SERVICES
+    for service in services:
         directory = RUNTIME / service
         previous = directory / "previous"
         target = Path("snapshots") / snapshot if snapshot else previous.readlink()

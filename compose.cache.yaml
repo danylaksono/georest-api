@@ -1,0 +1,39 @@
+services:
+  configure:
+    environment:
+      GEOREST_TILE_CACHE: "true"
+      TILE_TTL_DEFAULT: ${TILE_TTL_DEFAULT:-3600}
+      TILE_TTL_VOLATILE: ${TILE_TTL_VOLATILE:-60}
+    volumes:
+      - cache-config:/runtime/cache
+
+  varnish:
+    image: ${GEOREST_REGISTRY:-ghcr.io/danylaksono}/georest-varnish:${GEOREST_VERSION:-dev}
+    build:
+      context: ./images/varnish
+    depends_on:
+      configure:
+        condition: service_completed_successfully
+        restart: true
+      martin:
+        condition: service_healthy
+        restart: true
+    environment:
+      VARNISH_SIZE: ${VARNISH_SIZE:-1G}
+    volumes:
+      - cache-config:/runtime:ro
+    networks: [clients]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1/tiles/catalog"]
+      interval: 2s
+      timeout: 4s
+      retries: 25
+
+  traefik:
+    depends_on:
+      varnish:
+        condition: service_healthy
+        restart: true
+
+volumes:
+  cache-config: {}

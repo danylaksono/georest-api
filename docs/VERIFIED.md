@@ -9,3 +9,8 @@
 | Martin | `ghcr.io/maplibre/martin:1.16.1` | `route_prefix: /tiles` mounts routes and `base_path` affects TileJSON. Explicit `postgres.tables` with `auto_publish: false` works. TileJSON advertised the public origin. The internal MVT proxy fetched the same non-empty tile. Its provider needs a dot-free upstream path on pygeoapi 0.24.0. [Pinned schema](https://github.com/maplibre/martin/blob/martin-v1.16.1/schemas/config.json) · [MVT proxy source](https://github.com/geopython/pygeoapi/blob/0.24.0/pygeoapi/provider/mvt_proxy.py) |
 | PostGIS | `postgis/postgis:17-3.6-alpine` | The amd64 image initializes PostGIS before the demo bootstrap. [Image project](https://github.com/postgis/docker-postgis) |
 | Docker Compose | v5.6.0 on Windows | `-f` flags and `COMPOSE_PATH_SEPARATOR=:` worked natively. `up --build --wait` accepted the successful config job and waited for health checks. [Compose environment variables](https://docs.docker.com/compose/how-tos/environment-variables/envvars/) |
+
+## Phase 2 · November 23, 2026
+
+- `varnish:9.1.0-2` supplies `curl` and runs as the `varnish` user. The rendered policy is readable by that user, and VCL compilation runs before the daemon starts. The VCL uses standard pass and backend-response hooks and keeps Varnish's encoding negotiation. [Official image](https://hub.docker.com/_/varnish) · [VCL hooks](https://docs.varnish-software.com/book/vcl/hooks-subroutines-and-built-in-vcl/)
+- Martin's explicit table `properties` map determines which fields are encoded. Set `cache: disable` when Varnish owns the freshness lifetime. [Pinned config schema](https://github.com/maplibre/martin/blob/martin-v1.16.1/schemas/config.json)

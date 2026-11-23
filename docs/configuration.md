@@ -50,7 +50,7 @@ Run `make refresh LEVEL=1` or `python scripts/refresh.py -f compose.yaml` with t
 
 Run `docker compose run --rm --no-deps configure render --check` to validate without applying. Use `--dry-run` to print generated configuration with database credentials redacted.
 
-Read-only manual mode uses `pygeoapi.config.yml` and `martin.yaml` under `GEOREST_MANUAL_DIR`. Set the same `/api` and `/tiles` prefixes, use restricted DB logins and explicit Martin table sources, and maintain matching source IDs and provider URLs.
+Read-only manual mode uses `pygeoapi.config.yml` and `martin.yaml` under `GEOREST_MANUAL_DIR`. Set the same `/api` and `/tiles` prefixes, use restricted DB logins and explicit Martin table sources, and maintain matching source IDs and provider URLs. The configuration job uses the `PG*` settings and reader login to wait for PostGIS before the services start.
 
 ## Tile cache
 

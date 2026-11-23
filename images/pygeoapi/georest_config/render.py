@@ -8,7 +8,7 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import yaml
 
-from .database import inspect_manifest
+from .database import connect, inspect_manifest
 from .manifest import SOURCE_ID, ConfigError, load_yaml, read_manifest
 from .secure import configure_https, security_settings
 
@@ -286,6 +286,7 @@ def build_configs(dry_run=False):
         if dry_run:
             raise ConfigError("dry-run output is unavailable for operator-managed configs")
         api, martin, source_ids = manual_config(cache_enabled)
+        connect(database).close()
     else:
         collections = read_manifest(Path("/inputs/collections.yml"))
         tables = inspect_manifest(collections, database)

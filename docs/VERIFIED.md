@@ -33,3 +33,8 @@
 | Viewer `POST` | `403` | `401` |
 
 The stock OIDC middleware redirects before policy evaluation. OPA can distinguish viewer and editor in the policy, but the pinned middleware maps a policy denial to `401`. The API key, JWKS, and OPA modes are mutually exclusive. Keep Level 4 deferred pending a decision on an adapter or a revised HTTP contract. Review distribution notices for `fastapi-opa` if a future release incorporates it. [Middleware selection](https://github.com/geobeyond/fastgeoapi/blob/v0.4.0/app/main.py#L151-L211)
+
+## Release checks · November 23, 2026
+
+- Local Buildx dry runs completed for both custom images on `linux/amd64` and `linux/arm64`. Compose files and Dockerfiles pin the upstream image digests. The bundled PostGIS pin is amd64 and uses the declared platform on other hosts. [Buildx output options](https://docs.docker.com/reference/cli/docker/buildx/build/#output)
+- `actionlint` validated the CI and release workflows locally. The tag workflow reserves GHCR publishing for maintainer-pushed version tags. [Release guide](releases.md)

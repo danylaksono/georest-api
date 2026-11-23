@@ -1,7 +1,8 @@
 x-georest-image: &georest-image
   image: ${GEOREST_REGISTRY:-ghcr.io/danylaksono}/georest-pygeoapi:${GEOREST_VERSION:-dev}
   build:
-    context: ./images/pygeoapi
+    context: .
+    dockerfile: images/pygeoapi/Dockerfile
 
 services:
   configure:
@@ -55,7 +56,7 @@ services:
       retries: 25
 
   martin:
-    image: ghcr.io/maplibre/martin:1.16.1
+    image: ghcr.io/maplibre/martin:1.16.1@sha256:59902019bf9038926ff0c71174237d6852e64c457830a6349abe7090be8818ca
     command: ["--config", "/runtime/current/martin.yml"]
     depends_on:
       configure:
@@ -72,7 +73,7 @@ services:
       retries: 25
 
   traefik:
-    image: traefik:v3.7.19
+    image: traefik:v3.7.19@sha256:a6c0194dda77bcb804824580f36fa7edc56e315b1acfe933366c8b52844a78a4
     command:
       - --entrypoints.web.address=:80
       - --providers.file.filename=/runtime/current/traefik.yml
@@ -98,7 +99,8 @@ services:
       retries: 25
 
   postgis:
-    image: postgis/postgis:17-3.6-alpine
+    image: postgis/postgis:17-3.6-alpine@sha256:cd2ae468934722d6f61691198ab29d4d2fd94f3a8684bc3ee6f79459e374c1b0
+    platform: linux/amd64
     profiles: [db]
     environment:
       POSTGRES_DB: ${PGDATABASE:-gis}

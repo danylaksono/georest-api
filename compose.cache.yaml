@@ -10,7 +10,8 @@ services:
   varnish:
     image: ${GEOREST_REGISTRY:-ghcr.io/danylaksono}/georest-varnish:${GEOREST_VERSION:-dev}
     build:
-      context: ./images/varnish
+      context: .
+      dockerfile: images/varnish/Dockerfile
     depends_on:
       configure:
         condition: service_completed_successfully

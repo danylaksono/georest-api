@@ -1,0 +1,11 @@
+*
+!LICENSE
+!images/
+!images/pygeoapi/
+!images/pygeoapi/Dockerfile
+!images/pygeoapi/georest_config/
+!images/pygeoapi/georest_config/*.py
+!images/varnish/
+!images/varnish/Dockerfile
+!images/varnish/default.vcl
+!images/varnish/entrypoint.sh

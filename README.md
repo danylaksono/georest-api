@@ -17,6 +17,14 @@ docker compose up -d --build --wait
 
 The demo publishes read-only data on loopback. Stop it with `docker compose down`. To use your own data, [configure external PostGIS](docs/configuration.md#external-postgis) and name the datasets in a collection manifest.
 
+## Architecture
+
+![GeoREST architecture. GIS clients connect through Traefik. pygeoapi serves features from PostGIS and proxies OGC tile requests to Martin. Direct and OGC tile requests share the optional Varnish cache.](docs/architecture.png)
+
+At Level 1, Traefik and pygeoapi send tile requests directly to Martin. At Levels 2 and 3, Varnish caches eligible tile responses. Requests with credentials or cookies bypass the shared cache.
+
+[Editable draw.io diagram](docs/architecture.drawio)
+
 ## Deployment levels
 
 | Level | Start with | Adds |

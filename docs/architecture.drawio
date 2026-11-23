@@ -1,0 +1,95 @@
+<mxfile host="Electron" version="32.6.1">
+  <diagram id="georest-architecture" name="GeoREST architecture">
+    <mxGraphModel dx="1024" dy="540" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="clients" value="&lt;b style=&quot;font-size:20px&quot;&gt;GIS clients&lt;/b&gt;&lt;br&gt;QGIS and WebGIS" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#0F172A;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="18" y="163" width="155" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="traefik" value="&lt;b style=&quot;font-size:20px&quot;&gt;Traefik&lt;/b&gt;&lt;br&gt;Only published ports&lt;br&gt;HTTPS at Level 3" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#EAF2FF;strokeColor=#305FA9;strokeWidth=1.5;fontColor=#113368;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="217" y="151" width="170" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="pygeoapi" value="&lt;b style=&quot;font-size:20px&quot;&gt;pygeoapi&lt;/b&gt;&lt;br&gt;OGC API Features&lt;br&gt;OGC API Tiles" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#EAF2FF;strokeColor=#305FA9;strokeWidth=1.5;fontColor=#113368;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="485" y="30" width="205" height="96" as="geometry"/>
+        </mxCell>
+        <mxCell id="postgis" value="&lt;b style=&quot;font-size:20px&quot;&gt;PostGIS&lt;/b&gt;&lt;br&gt;Bundled or external" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#0F172A;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="755" y="30" width="190" height="96" as="geometry"/>
+        </mxCell>
+        <mxCell id="varnish" value="&lt;b style=&quot;font-size:20px&quot;&gt;Varnish&lt;/b&gt;&lt;br&gt;Shared tile cache · Level 2+" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#E8F7F2;strokeColor=#187563;strokeWidth=1.5;dashed=1;dashPattern=5 4;fontColor=#12473D;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="485" y="259" width="205" height="94" as="geometry"/>
+        </mxCell>
+        <mxCell id="martin" value="&lt;b style=&quot;font-size:20px&quot;&gt;Martin&lt;/b&gt;&lt;br&gt;Vector tiles and TileJSON" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#E8F7F2;strokeColor=#187563;strokeWidth=1.5;fontColor=#12473D;fontFamily=Arial;fontSize=15;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="755" y="259" width="190" height="94" as="geometry"/>
+        </mxCell>
+        <mxCell id="client-edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="clients" target="traefik">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#305FA9;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="traefik" target="pygeoapi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="177"/>
+              <mxPoint x="420" y="78"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-tiles" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#187563;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" parent="1" source="traefik" target="varnish">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="229"/>
+              <mxPoint x="420" y="306"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="api-db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="pygeoapi" target="postgis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-tiles" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#187563;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pygeoapi" target="varnish">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cache-martin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#187563;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="varnish" target="martin">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="martin-db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="martin" target="postgis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-route" value="/api" style="text;html=1;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#113368;fontFamily=Consolas;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="428" y="51" width="50" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="tile-route" value="/tiles" style="text;html=1;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#12473D;fontFamily=Consolas;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="425" y="279" width="57" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-sql-label" value="SQL" style="text;html=1;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#334155;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="702" y="51" width="41" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-tile-label" value="OGC tile proxy" style="text;html=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#12473D;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="600" y="180" width="135" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="martin-sql-label" value="SQL" style="text;html=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#334155;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="862" y="180" width="41" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="config-panel" style="rounded=1;arcSize=10;html=1;strokeColor=#CBD5E1;fillColor=#F8FAFC;" vertex="1" parent="1">
+          <mxGeometry x="18" y="389" width="927" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="config-heading" value="Default configuration mode" style="text;html=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;fontColor=#334155;fontFamily=Arial;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="36" y="398" width="305" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="manifest" value="&lt;b style=&quot;font-size:17px&quot;&gt;Collection manifest&lt;/b&gt;&lt;br&gt;Published tables and settings" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#94A3B8;fontColor=#0F172A;fontFamily=Arial;fontSize=15;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="36" y="432" width="235" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="configure" value="&lt;b style=&quot;font-size:17px&quot;&gt;configure job&lt;/b&gt;&lt;br&gt;Validates the PostGIS schema" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#94A3B8;fontColor=#0F172A;fontFamily=Arial;fontSize=15;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="325" y="432" width="235" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="runtime-config" value="&lt;b style=&quot;font-size:17px&quot;&gt;Runtime config&lt;/b&gt;&lt;br&gt;Traefik, pygeoapi, Martin, optional Varnish" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#94A3B8;fontColor=#0F172A;fontFamily=Arial;fontSize=15;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="614" y="432" width="310" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="configure-input" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748B;strokeWidth=1.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="manifest" target="configure">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="configure-output" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748B;strokeWidth=1.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="configure" target="runtime-config">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

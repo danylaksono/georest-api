@@ -10,6 +10,7 @@ import yaml
 
 from .database import inspect_manifest
 from .manifest import SOURCE_ID, ConfigError, load_yaml, read_manifest
+from .secure import configure_https, security_settings
 
 CRS84 = "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
 READ_METHOD = "(Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`))"
@@ -41,8 +42,9 @@ def get_settings():
     password = os.environ["GEOREST_READER_PASSWORD"]
     if dataset == "demo" and host != "postgis":
         raise ConfigError("GEOREST_DATASET=demo requires the bundled postgis host")
-    if not password or (password == "demo-reader-password" and (dataset == "external" or not bind.is_loopback)):
-        raise ConfigError("external or non-loopback deployments require a custom reader password")
+    secure = os.environ.get("GEOREST_SECURE") == "true"
+    if not password or (password == "demo-reader-password" and (secure or dataset == "external" or not bind.is_loopback)):
+        raise ConfigError("HTTPS, external, and non-loopback deployments require a custom reader password")
     if dataset == "external" and mode == "auto" and not os.environ.get("GEOREST_COLLECTIONS_EXPLICIT"):
         raise ConfigError("external mode requires GEOREST_COLLECTIONS_FILE")
 
@@ -68,7 +70,7 @@ def database_url(database):
     return f"postgresql://{user}:{password}@{host}:{database['port']}/{dbname}?{query}"
 
 
-def pygeoapi_config(origin, database, collections, tables, cache_enabled):
+def pygeoapi_config(origin, database, collections, tables, cache_enabled, editable_ids):
     api = load_yaml(Path("/inputs/pygeoapi.yml"))
     api_url = f"{origin.scheme}://{origin.netloc}/api"
     api["server"]["url"] = api_url
@@ -96,6 +98,9 @@ def pygeoapi_config(origin, database, collections, tables, cache_enabled):
             "geom_field": collection.geometry,
             "storage_crs": CRS84 if table.srid == 4326 else f"http://www.opengis.net/def/crs/EPSG/0/{table.srid}",
         }
+        if collection.id in editable_ids:
+            connection.update(user="georest_editor", password=os.environ["GEOREST_EDITOR_PASSWORD"])
+            feature["editable"] = True
         if collection.time_field:
             feature["time_field"] = collection.time_field
         providers = [feature]
@@ -274,7 +279,9 @@ def cache_policy(volatile_ids):
 def build_configs(dry_run=False):
     origin, mode, database = get_settings()
     cache_enabled = os.environ.get("GEOREST_TILE_CACHE") == "true"
+    security = security_settings(origin, mode)
     volatile_ids = []
+    editable_ids = set()
     if mode == "manual":
         if dry_run:
             raise ConfigError("dry-run output is unavailable for operator-managed configs")
@@ -282,18 +289,25 @@ def build_configs(dry_run=False):
     else:
         collections = read_manifest(Path("/inputs/collections.yml"))
         tables = inspect_manifest(collections, database)
-        api = pygeoapi_config(origin, database, collections, tables, cache_enabled)
+        if security and security.allow_edits:
+            editable_ids = {collection.id for collection in collections if collection.editable}
+        api = pygeoapi_config(origin, database, collections, tables, cache_enabled, editable_ids)
         martin = martin_config(database, collections, tables, cache_enabled)
-        volatile_ids = [collection.id for collection in collections if collection.tiles and collection.cache == "volatile"]
+        volatile_ids = [
+            collection.id for collection in collections
+            if collection.tiles and (collection.cache == "volatile" or collection.id in editable_ids)
+        ]
         source_ids = martin.get("postgres", {}).get("tables", {})
         if dry_run:
             api, martin = redact(api, martin)
         api, martin = (yaml.safe_dump(config, sort_keys=False) for config in (api, martin))
-    edge = yaml.safe_dump(edge_config(origin, source_ids, cache_enabled), sort_keys=False)
+    edge = edge_config(origin, source_ids, cache_enabled)
+    if security:
+        configure_https(edge, security, editable_ids)
     configs = {
         "api": {"pygeoapi.yml": api},
         "martin": {"martin.yml": martin},
-        "edge": {"traefik.yml": edge},
+        "edge": {"traefik.yml": yaml.safe_dump(edge, sort_keys=False)},
     }
     if cache_enabled:
         configs["cache"] = {"cache-policy.vcl": cache_policy(volatile_ids)}

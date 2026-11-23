@@ -6,6 +6,7 @@ CREATE SCHEMA west;
 CREATE TABLE east.points (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name text NOT NULL,
+    observed_at timestamptz NOT NULL DEFAULT now(),
     geom geometry(Point, 4326) NOT NULL
 );
 CREATE TABLE west.points (LIKE east.points INCLUDING ALL);

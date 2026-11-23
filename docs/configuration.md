@@ -20,6 +20,13 @@ Copy `.env.example` to `.env`. Pass each Compose `-f` in order when using overla
 | `GEOREST_REGISTRY`, `GEOREST_VERSION` | `ghcr.io/danylaksono` and `dev` for custom images. |
 | `VARNISH_SIZE` | `1G` of cache storage in Level 2. |
 | `TILE_TTL_DEFAULT`, `TILE_TTL_VOLATILE` | `3600` and `60` seconds for static and volatile sources. |
+| `DOMAIN`, `ACME_EMAIL` | Public hostname matching the HTTPS `PUBLIC_URL` and ACME account email at Level 3. |
+| `GEOREST_HTTPS_PORT` | `443`. Host HTTPS port. |
+| `GEOREST_ALLOW_EDITS` | `false`. Enable transactions on manifest entries marked `editable: true`. |
+| `WRITE_ALLOWLIST` | Comma-separated CIDRs for write access. Traefik checks the connection's peer address. |
+| `GEOREST_AUTH_DIR` | Directory of htpasswd files at Level 3. Defaults to `./config/local/auth`. |
+| `WRITE_BASIC_AUTH_FILE`, `API_BASIC_AUTH_FILE` | Filenames in the auth directory for write and read access, respectively. |
+| `GEOREST_ADMIN_DSN` | Administrator connection string passed only to the grant reconciliation job. |
 
 ## External PostGIS
 
@@ -52,3 +59,22 @@ Run `docker compose -f compose.yaml -f compose.cache.yaml up -d --build --wait` 
 Successful public tile requests can hit the shared cache. Cookie and authorization requests bypass it. Catalog and TileJSON requests also bypass it. The direct tile path exposes `X-Cache` to distinguish `HIT`, `MISS`, and `PASS`. Generated Martin sources include scalar text, numeric, and boolean columns as vector tile attributes.
 
 With manual configs, set `cache: disable` in Martin. Point the manual OGC tile provider to `http://varnish/tiles/<id>/{z}/{x}/{y}` if it should share the default TTL.
+
+## HTTPS and editable collections
+
+Set `PUBLIC_URL=https://your-domain`, `DOMAIN`, and `ACME_EMAIL`. Use deployment-specific database passwords and a publicly reachable `GEOREST_BIND_ADDRESS`. Point public DNS to the edge and allow traffic to port 80 for the ACME HTTP-01 challenge and 443 for HTTPS.
+
+Start Level 3 with `GEOREST_ALLOW_EDITS=false` while provisioning the database. To enable writes, set `editable: true` only on the required manifest entries and set `GEOREST_ALLOW_EDITS=true`. Configure `WRITE_ALLOWLIST`, a Basic auth file, or both. Both must pass when combined. An upstream load balancer changes the socket peer seen by Traefik. Use a directly reachable edge or configure trusted proxy handling before using an IP guard behind a load balancer.
+
+To create a password file, make `config/local/auth`, then run `sh scripts/htpasswd.sh editor > config/local/auth/write.htpasswd` with Apache `htpasswd` available. Set `WRITE_BASIC_AUTH_FILE=write.htpasswd`. An `API_BASIC_AUTH_FILE` also protects reads, including direct and OGC tile URLs. Private tile requests bypass the shared cache.
+
+Export `GEOREST_ADMIN_DSN` for the grant job. Supply an account allowed to manage grants on the target database and to create the dedicated service logins if they are missing. Reconciliation owns the logins' direct table, schema, and sequence grants in that database. Keep them dedicated to GeoREST. The administrator connection is used by the short-lived command.
+
+```sh
+make grants LEVEL=3
+make refresh LEVEL=3
+```
+
+Without Make, pass `-f compose.yaml -f compose.cache.yaml -f compose.secure.yaml` to `docker compose run --rm --no-deps -e GEOREST_ADMIN_DSN configure grants`, then pass the same file flags to `python scripts/refresh.py`. Reconcile first when taking edit access away. The refresh command can restore a previous service snapshot on startup failure. To restore previous database grants as part of a deliberate rollback, use the previous manifest and rerun the grants command. Grants apply transactionally against existing volumes and external databases.
+
+For a disposable HTTPS fixture independent of public DNS and Let's Encrypt, run `python tests/secure_deployment.py` or add `--external` to exercise an external PostGIS container. The fixture creates and trusts its own certificate and selects loopback ports.

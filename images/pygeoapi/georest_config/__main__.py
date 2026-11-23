@@ -7,8 +7,10 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-from .manifest import ConfigError
-from .render import build_configs
+from .grants import reconcile
+from .manifest import ConfigError, read_manifest
+from .render import build_configs, get_settings
+from .secure import security_settings
 
 RUNTIME = Path("/runtime")
 SERVICES = ("api", "martin", "edge")
@@ -72,6 +74,7 @@ def main():
     activate = commands.add_parser("activate")
     activate.add_argument("snapshot")
     commands.add_parser("rollback")
+    commands.add_parser("grants")
     args = parser.parse_args()
     try:
         if args.command == "render":
@@ -86,6 +89,13 @@ def main():
                     print(snapshot)
                 else:
                     switch(snapshot)
+        elif args.command == "grants":
+            origin, mode, database = get_settings()
+            security = security_settings(origin, mode)
+            if security is None:
+                raise ConfigError("grants requires the Level 3 overlay")
+            reconcile(read_manifest(Path("/inputs/collections.yml")), database, security.allow_edits)
+            print("GeoREST grants reconciled")
         else:
             switch(getattr(args, "snapshot", None))
     except (ConfigError, OSError) as exc:

@@ -14,3 +14,8 @@
 
 - `varnish:9.1.0-2` supplies `curl` and runs as the `varnish` user. The rendered policy is readable by that user, and VCL compilation runs before the daemon starts. The VCL uses standard pass and backend-response hooks and keeps Varnish's encoding negotiation. [Official image](https://hub.docker.com/_/varnish) · [VCL hooks](https://docs.varnish-software.com/book/vcl/hooks-subroutines-and-built-in-vcl/)
 - Martin's explicit table `properties` map determines which fields are encoded. Set `cache: disable` when Varnish owns the freshness lifetime. [Pinned config schema](https://github.com/maplibre/martin/blob/martin-v1.16.1/schemas/config.json)
+
+## Phase 3 · November 23, 2026
+
+- Traefik v3.7.19 accepts `usersFile` for Basic authentication. The IP allowlist uses the connecting peer by default. Production uses HTTP-01 on port 80 and a persistent ACME volume. Local HTTPS uses the test overlay and generated certificates. [Basic auth](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/basicauth/) · [IP allowlist](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ipallowlist/) · [ACME](https://doc.traefik.io/traefik/reference/install-configuration/tls/certificate-resolvers/acme/)
+- PostgreSQL default privileges are scoped to each creating role. GeoREST applies object grants deliberately and checks effective write privileges after revocation. [PostgreSQL default privileges](https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html)

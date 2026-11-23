@@ -12,7 +12,7 @@ ifeq ($(files),)
 $(error LEVEL must be 1, 2, or 3)
 endif
 
-.PHONY: up pull config smoke logs down refresh reset
+.PHONY: up pull config smoke logs down refresh grants reset
 up:
 	$(COMPOSE) $(files) up -d --build --wait
 
@@ -34,6 +34,9 @@ down:
 
 refresh:
 	$(PYTHON) scripts/refresh.py $(files)
+
+grants:
+	$(COMPOSE) $(files) run --rm --no-deps -e GEOREST_ADMIN_DSN configure grants
 
 reset:
 	@printf 'Delete this project’s database and configuration volumes? [y/N] '; \

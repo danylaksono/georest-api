@@ -1,0 +1,43 @@
+services:
+  configure:
+    environment:
+      GEOREST_SECURE: "true"
+      GEOREST_TLS_MODE: acme
+      DOMAIN: ${DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      GEOREST_ALLOW_EDITS: ${GEOREST_ALLOW_EDITS:-false}
+      GEOREST_EDITOR_PASSWORD: ${GEOREST_EDITOR_PASSWORD:-}
+      WRITE_ALLOWLIST: ${WRITE_ALLOWLIST:-}
+      WRITE_BASIC_AUTH_FILE: ${WRITE_BASIC_AUTH_FILE:-}
+      API_BASIC_AUTH_FILE: ${API_BASIC_AUTH_FILE:-}
+    volumes:
+      - ${GEOREST_AUTH_DIR:-./config/local/auth}:/auth:ro
+
+  traefik:
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=:${GEOREST_HTTPS_PORT:-443}
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --ping=true
+      - --providers.file.filename=/runtime/current/traefik.yml
+      - --providers.file.watch=false
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+      - --certificatesresolvers.georest.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.georest.acme.storage=/acme/acme.json
+      - --certificatesresolvers.georest.acme.httpchallenge.entrypoint=web
+    ports:
+      - "${GEOREST_BIND_ADDRESS:-127.0.0.1}:${GEOREST_HTTPS_PORT:-443}:443"
+    volumes:
+      - ${GEOREST_AUTH_DIR:-./config/local/auth}:/auth:ro
+      - acme-data:/acme
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+
+  postgis:
+    environment:
+      GEOREST_REQUIRE_CUSTOM_PASSWORDS: "true"
+
+volumes:
+  acme-data: {}

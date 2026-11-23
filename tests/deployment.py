@@ -49,7 +49,10 @@ def project_env():
     return env
 
 
-def ports_are_private(compose, env, port):
+def ports_are_private(compose, env, port, https_port=None):
+    edge_ports = {"80/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}
+    if https_port is not None:
+        edge_ports["443/tcp"] = [{"HostIp": "127.0.0.1", "HostPort": https_port}]
     service_ids = command(*compose, "ps", "-q", env=env, stdout=subprocess.PIPE).stdout.split()
     published = []
     for container in service_ids:
@@ -61,7 +64,7 @@ def ports_are_private(compose, env, port):
         service, bindings = raw.split(" ", 1)
         if json.loads(bindings):
             published.append(service)
-            assert json.loads(bindings) == {"80/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}
+            assert json.loads(bindings) == edge_ports
     assert published == ["traefik"]
 
 

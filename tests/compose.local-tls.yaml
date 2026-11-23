@@ -1,0 +1,16 @@
+services:
+  configure:
+    environment:
+      GEOREST_TLS_MODE: local
+
+  traefik:
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=:${GEOREST_HTTPS_PORT:-443}
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --ping=true
+      - --providers.file.filename=/runtime/current/traefik.yml
+      - --providers.file.watch=false
+    volumes:
+      - ${GEOREST_TEST_TLS_DIR:?provide the local TLS fixture directory}:/tls:ro

@@ -1,0 +1,46 @@
+services:
+  edge:
+    image: traefik:v3.7.19
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/routes.yml
+    ports:
+      - "127.0.0.1:${GEOREST_PROBE_PORT:?set a fixture port}:80"
+    volumes:
+      - ./auth-probe/routes.yml:/routes.yml:ro
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HOSTNAME: http://edge/auth
+      KC_HTTP_RELATIVE_PATH: /auth
+      JAVA_OPTS_APPEND: -XX:ActiveProcessorCount=2
+    volumes:
+      - ${GEOREST_PROBE_REALM:?run the probe script}:/opt/keycloak/data/import/realm.json:ro
+
+  opa:
+    image: openpolicyagent/opa:1.22.4
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policy/roles.rego"]
+    volumes:
+      - ./auth-probe:/policy:ro
+
+  fastgeoapi:
+    image: georest-fastgeo-probe:0.4.0
+    environment:
+      ENV_STATE: dev
+      HOST: 0.0.0.0
+      PORT: "5000"
+      DEV_APP_URI: http://edge
+      DEV_PYGEOAPI_BASEURL: http://edge
+      DEV_PYGEOAPI_CONFIG: pygeoapi-config.yml
+      DEV_PYGEOAPI_OPENAPI: /tmp/georest-openapi.yml
+      DEV_FASTGEOAPI_CONTEXT: /api
+      DEV_FASTGEOAPI_WITH_MCP: "false"
+      DEV_API_KEY_ENABLED: "false"
+      DEV_JWKS_ENABLED: "false"
+      DEV_OPA_ENABLED: "true"
+      DEV_OPA_URL: http://opa:8181
+      DEV_OIDC_WELL_KNOWN_ENDPOINT: http://edge/auth/realms/georest/.well-known/openid-configuration
+      DEV_OIDC_CLIENT_ID: georest-fixture
+      DEV_OIDC_CLIENT_SECRET: ${GEOREST_PROBE_CLIENT_SECRET:?run the probe script}

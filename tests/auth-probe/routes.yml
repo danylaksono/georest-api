@@ -1,0 +1,19 @@
+http:
+  routers:
+    auth:
+      rule: PathPrefix("/auth/")
+      entryPoints: [web]
+      service: keycloak
+    api:
+      rule: PathPrefix("/api/")
+      entryPoints: [web]
+      service: fastgeoapi
+  services:
+    keycloak:
+      loadBalancer:
+        servers:
+          - url: http://keycloak:8080
+    fastgeoapi:
+      loadBalancer:
+        servers:
+          - url: http://fastgeoapi:5000

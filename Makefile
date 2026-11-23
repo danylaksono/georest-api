@@ -6,10 +6,11 @@ PUBLIC_URL ?= http://localhost
 files_1 := -f compose.yaml
 files_2 := $(files_1) -f compose.cache.yaml
 files_3 := $(files_2) -f compose.secure.yaml
+files_4 := $(files_3) -f compose.auth.yaml
 files := $(files_$(LEVEL))
 
 ifeq ($(files),)
-$(error LEVEL must be 1, 2, or 3)
+$(error LEVEL must be 1, 2, 3, or 4)
 endif
 
 .PHONY: up pull config smoke logs down refresh grants reset
@@ -24,7 +25,11 @@ config:
 	$(COMPOSE) $(files) config --quiet
 
 smoke:
+ifeq ($(LEVEL),4)
+	$(PYTHON) tests/oidc_deployment.py
+else
 	$(PYTHON) scripts/smoke_test.py --url "$(PUBLIC_URL)" --level "$(LEVEL)"
+endif
 
 logs:
 	$(COMPOSE) $(files) logs --tail=100 -f

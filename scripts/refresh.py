@@ -15,7 +15,7 @@ def refresh(compose):
     if not re.fullmatch(r"[a-f0-9]{32}", snapshot):
         raise RuntimeError("could not identify the validated configuration snapshot")
 
-    backends = [name for name in ("pygeoapi", "martin", "varnish") if name in services]
+    backends = [name for name in ("pygeoapi", "martin", "varnish", "opa", "authorizer") if name in services]
     start = ("up", "-d", "--no-deps", "--wait", "--wait-timeout", "75")
     run("stop", "traefik")
     try:

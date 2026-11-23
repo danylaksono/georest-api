@@ -2,6 +2,7 @@
 
 import copy
 import ipaddress
+import json
 import os
 from pathlib import Path
 from urllib.parse import quote, urlencode, urlsplit
@@ -10,6 +11,7 @@ import yaml
 
 from .database import connect, inspect_manifest
 from .manifest import SOURCE_ID, ConfigError, load_yaml, read_manifest
+from .oidc import configure_oidc
 from .secure import configure_https, security_settings
 
 CRS84 = "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
@@ -300,8 +302,11 @@ def build_configs(dry_run=False):
             api, martin = redact(api, martin)
         api, martin = (yaml.safe_dump(config, sort_keys=False) for config in (api, martin))
     edge = edge_config(origin, source_ids, cache_enabled)
+    oidc = security and security.oidc
     if security:
-        configure_https(edge, security, editable_ids)
+        configure_https(edge, security, set() if oidc else editable_ids)
+    if oidc:
+        configure_oidc(edge, security, {collection.id for collection in collections}, source_ids)
     configs = {
         "api": {"pygeoapi.yml": api},
         "martin": {"martin.yml": martin},
@@ -309,4 +314,7 @@ def build_configs(dry_run=False):
     }
     if cache_enabled:
         configs["cache"] = {"cache-policy.vcl": cache_policy(volatile_ids)}
+    if oidc:
+        acl = {"georest": {"issuer": f"{origin.geturl()}/auth/realms/georest", "editable": sorted(editable_ids)}}
+        configs["auth"] = {"acl.json": json.dumps(acl)}
     return configs

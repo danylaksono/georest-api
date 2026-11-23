@@ -24,8 +24,8 @@ from smoke_test import (  # noqa: E402
 )
 
 
-def command(*args, **options):
-    return subprocess.run(args, cwd=ROOT, text=True, check=True, **options)
+def command(*args, check=True, **options):
+    return subprocess.run(args, cwd=ROOT, text=True, check=check, **options)
 
 
 def start(compose, env):

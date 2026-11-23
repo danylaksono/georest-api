@@ -32,7 +32,13 @@
 | Viewer `GET` | `200` | `200` |
 | Viewer `POST` | `403` | `401` |
 
-The stock OIDC middleware redirects before policy evaluation. OPA can distinguish viewer and editor in the policy, but the pinned middleware maps a policy denial to `401`. The API key, JWKS, and OPA modes are mutually exclusive. Keep Level 4 deferred pending a decision on an adapter or a revised HTTP contract. Review distribution notices for `fastapi-opa` if a future release incorporates it. [Middleware selection](https://github.com/geobeyond/fastgeoapi/blob/v0.4.0/app/main.py#L151-L211)
+The stock OIDC middleware redirects before policy evaluation and maps a policy denial to `401`. The API key, JWKS, and OPA modes are mutually exclusive. The production overlay keeps pygeoapi as the feature service and uses a small Traefik ForwardAuth adapter to preserve the public-read and `401`/`403` contract. [Middleware selection](https://github.com/geobeyond/fastgeoapi/blob/v0.4.0/app/main.py#L151-L211)
+
+## Phase 4 implementation · November 23, 2026
+
+- The authorizer uses Gunicorn `23.0.0` already installed in the pinned pygeoapi image. It translates OPA decisions into HTTP status codes. Traefik `v3.7.19` forwards the original request method and URI with the bearer credential. [Traefik ForwardAuth](https://doc.traefik.io/traefik/v3.7/middlewares/http/forwardauth/)
+- OPA `1.22.4` verifies Keycloak RS256 tokens against the realm's JWKS and uses the generated editable-collection list. Keycloak `26.8.2` uses its own PostgreSQL `17-alpine` database, with the password and privileges of a dedicated database login. Keycloak resolves the trusted Traefik address at startup. [OPA token verification](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokens), [Keycloak proxy configuration](https://www.keycloak.org/server/reverseproxy)
+- The local HTTPS fixture passed five Rego tests and exercised real Keycloak browser PKCE and client-credentials tokens. It verified public reads, `401` for missing and invalid credentials, `403` for forbidden edits, successful editor CRUD, and failed writes while OPA or the authorization service was stopped. It also checked both private tile paths, cache bypass, CORS preflight, grant revocation, the public issuer, and the private admin routes. [Fixture](../tests/oidc_deployment.py)
 
 ## Release checks · November 23, 2026
 

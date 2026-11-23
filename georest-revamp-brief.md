@@ -163,6 +163,8 @@ When upstream differs from the plan, record the difference and verify the intend
 
 **Feasibility check.** Before adding the production auth overlay, build a disposable integration test using the candidate fastgeoapi, Keycloak, and OPA. fastgeoapi v0.4.0 exposes mutually exclusive API key, JWKS, and OPA modes. Its locked fastapi-opa 2.0.3 OIDC middleware redirects anonymous requests before policy evaluation and returns `401` for policy denials. A Rego rule alone cannot produce the proposed anonymous `GET` and `401`/`403` distinction. Check the released version and demonstrate the full HTTP behavior through Traefik before settling the integration. If the candidate needs an adapter or a behavior change, record the evidence and get a maintainer decision before implementing Level 4. Continue the independent documentation and publishing work for Levels 1–3 if this gate is unresolved.
 
+**Integration selected.** Keep pygeoapi and enforce protected requests through Traefik ForwardAuth. Use Keycloak for tokens and OPA to verify them and check the active collection snapshot. The adapter translates policy decisions into the agreed HTTP responses. The stock fastgeoapi check remains available as a diagnostic fixture. [Verification notes](docs/VERIFIED.md#phase-4-implementation--november-23-2026)
+
 After the gate passes:
 
 1. Use the proven OIDC and OPA integration for roles. If fastgeoapi replaces pygeoapi, reuse the config generator and validate the pinned versions' config compatibility. Disable the old pygeoapi public route and verify that no alternative route serves writes. Replace Level 3 Basic auth on public routes with Level 4's access policy so protected routes can accept bearer tokens. Keep any explicitly configured Level 4 IP allowlist as an additional write guard.
@@ -227,11 +229,13 @@ WRITE_ALLOWLIST=
 WRITE_BASIC_AUTH_FILE=
 API_BASIC_AUTH_FILE=
 
-# Level 4 settings. Document the remaining upstream values after the gate.
+# Level 4 settings. See docs/oidc.md for realm bootstrap.
 GEOREST_PRIVATE_READ=false
 GEOREST_PRIVATE_TILES=false
-KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=
-KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=
+KEYCLOAK_DB_ADMIN_PASSWORD=
+KEYCLOAK_DB_PASSWORD=
+# KC_BOOTSTRAP_ADMIN_USERNAME=
+# KC_BOOTSTRAP_ADMIN_PASSWORD=
 ```
 
 ## 7. Collection manifest example

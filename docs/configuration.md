@@ -27,6 +27,10 @@ Copy `.env.example` to `.env`. Pass each Compose `-f` in order when using overla
 | `GEOREST_AUTH_DIR` | Directory of htpasswd files at Level 3. Defaults to `./config/local/auth`. |
 | `WRITE_BASIC_AUTH_FILE`, `API_BASIC_AUTH_FILE` | Filenames in the auth directory for write and read access, respectively. |
 | `GEOREST_ADMIN_DSN` | Administrator connection string passed only to the grant reconciliation job. |
+| `GEOREST_PRIVATE_READ`, `GEOREST_PRIVATE_TILES` | `false`. Require an OIDC token for feature reads or both tile paths at Level 4. |
+| `KEYCLOAK_REALM_FILE` | `./config/local/keycloak/realm.json`. Initial realm import file. |
+| `KEYCLOAK_DB_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD` | Separate passwords for the identity database administrator and restricted Keycloak login. |
+| `KC_BOOTSTRAP_ADMIN_USERNAME`, `KC_BOOTSTRAP_ADMIN_PASSWORD` | Temporary Keycloak administrator credentials for the first start. |
 
 ## External PostGIS
 
@@ -78,3 +82,5 @@ make refresh LEVEL=3
 Without Make, pass `-f compose.yaml -f compose.cache.yaml -f compose.secure.yaml` to `docker compose run --rm --no-deps -e GEOREST_ADMIN_DSN configure grants`, then pass the same file flags to `python scripts/refresh.py`. Reconcile first when taking edit access away. The refresh command can restore a previous service snapshot on startup failure. To restore previous database grants as part of a deliberate rollback, use the previous manifest and rerun the grants command. Grants apply transactionally against existing volumes and external databases.
 
 For a disposable HTTPS fixture independent of public DNS and Let's Encrypt, run `python tests/secure_deployment.py` or add `--external` to exercise an external PostGIS container. The fixture creates and trusts its own certificate and selects loopback ports.
+
+Level 4 uses the same HTTPS and grant commands with `LEVEL=4` and adds the OIDC overlay. [Configure Level 4](oidc.md)

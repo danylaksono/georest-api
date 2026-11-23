@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -24,7 +25,7 @@ def stage(configs):
         for name, content in files.items():
             path = directory / name
             path.write_text(content, encoding="utf-8")
-            path.chmod(0o644 if service == "cache" else 0o600)
+            path.chmod(0o644 if service in {"auth", "cache"} else 0o600)
     return snapshot
 
 
@@ -39,6 +40,8 @@ def switch(snapshot=None):
         raise ConfigError("invalid snapshot ID")
     targets = {}
     services = (*SERVICES, "cache") if (RUNTIME / "cache").is_dir() else SERVICES
+    if os.environ.get("GEOREST_OIDC") == "true":
+        services = (*services, "auth")
     for service in services:
         directory = RUNTIME / service
         previous = directory / "previous"
@@ -93,7 +96,7 @@ def main():
             origin, mode, database = get_settings()
             security = security_settings(origin, mode)
             if security is None:
-                raise ConfigError("grants requires the Level 3 overlay")
+                raise ConfigError("grants requires the HTTPS overlay")
             reconcile(read_manifest(Path("/inputs/collections.yml")), database, security.allow_edits)
             print("GeoREST grants reconciled")
         else:

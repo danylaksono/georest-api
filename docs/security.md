@@ -5,6 +5,7 @@ Traefik is the only service that publishes host ports. It uses file-based routes
 - Levels 1–2 serve public read-only data. The demo binds to loopback. Treat every published collection and tile source as accessible to clients that can reach the edge.
 - Level 3 uses HTTPS. Editor permissions apply only to the tables marked editable, and Traefik checks the configured write guards. An IP guard uses the socket peer by default. Configure the edge topology before relying on a forwarded client address.
 - Level 3 can protect feature and tile reads with Basic auth. Requests using authorization or cookies bypass shared caching. The internal OGC tile provider does not forward client credentials to Martin.
+- Level 4 checks Keycloak bearer tokens and OPA decisions for writes and for optional private reads. Keep administration on the internal Keycloak interface. The policy service and identity database stay on private Docker networks. [Level 4 access policy](oidc.md#access-policy)
 
 Generate deployment-specific passwords and keep `.env`, htpasswd files, TLS keys, and administrator DSNs out of Git. Rotate anything that was used from the old committed environment file or service configs. Those credentials were removed from the current tree. Historical revisions are retained.
 

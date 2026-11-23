@@ -149,10 +149,7 @@ def martin_config(database, collections, tables, cache_enabled):
             if table.integer_id:
                 source["id_column"] = table.primary_id
             sources[collection.id] = source
-    if sources:
-        postgres["tables"] = sources
-    else:
-        config.pop("postgres")
+    postgres["tables"] = sources
     return config
 
 

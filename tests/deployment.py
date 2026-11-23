@@ -197,6 +197,13 @@ def external(level):
             assert tile_ids(origin) == {"east-points", "replacement"}
             assert request(f"{origin}/tiles/west-points/4/8/7")[0] == 404
             tile_bytes(f"{origin}/tiles/replacement/4/8/7")
+
+            manifest["collections"] = {"features-only": layer("east", "boundaries", tiles=False)}
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            command(sys.executable, "scripts/refresh.py", *compose[2:], env=env)
+            assert collection_ids(origin) == {"features-only"}
+            assert tile_ids(origin) == set()
+            assert request(f"{origin}/tiles/replacement/4/8/7")[0] == 404
         finally:
             command(*compose, "down", "--volumes", env=env)
             subprocess.run(["docker", "stop", f"{name}-db"], check=False)
